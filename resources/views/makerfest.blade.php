@@ -217,7 +217,8 @@
         @if($role === 'judge')
         <aside class="sidebar">
             <div class="sidebar-title">Judge Navigation</div>
-            <a href="javascript:void(0)" class="nav-item active" onclick="switchJudgeTab('tabAssignedProjects')" id="sideJudgeAssigned">Assigned Projects ({{ count($judgeAssignedProjects) }})</a>
+            <a href="javascript:void(0)" class="nav-item active" onclick="switchJudgeTab('tabAssignedProjects')" id="sideJudgeAssigned">Pending Projects ({{ count($judgePendingProjects) }})</a>
+            <a href="javascript:void(0)" class="nav-item" onclick="switchJudgeTab('tabEvaluatedProjects')" id="sideJudgeEvaluated">Evaluated Projects ({{ count($judgeEvaluatedProjects) }})</a>
             <a href="javascript:void(0)" class="nav-item" onclick="switchJudgeTab('tabAllProjects')" id="sideJudgeAll">All Event Projects ({{ count($projects) }})</a>
         </aside>
         @endif
@@ -421,21 +422,21 @@
                         @csrf
                         <div>
                             <label class="form-label">Select Project *</label>
-                            <select name="project_id" class="form-select" required>
-                                @foreach($projects as $p)
+                            <select name="project_id" class="form-select" style="margin-bottom: 0;" required>
+                                @foreach($unassignedProjects as $p)
                                 <option value="{{ $p->id }}">{{ $p->project_code }} — {{ $p->title }}</option>
                                 @endforeach
                             </select>
                         </div>
                         <div>
                             <label class="form-label">Select Judge *</label>
-                            <select name="judge_id" class="form-select" required>
+                            <select name="judge_id" class="form-select" style="margin-bottom: 0;" required>
                                 @foreach($judges as $j)
                                 <option value="{{ $j->id }}">{{ $j->name }} ({{ $j->email }})</option>
                                 @endforeach
                             </select>
                         </div>
-                        <button type="submit" class="btn btn-primary" style="height: 42px;">Assign Judge</button>
+                        <button type="submit" class="btn btn-primary" style="padding: 14px 24px; margin-bottom: 0;">Assign Judge</button>
                     </form>
                 </div>
 
@@ -448,6 +449,8 @@
                                 <th>Project Title</th>
                                 <th>Assigned Judge</th>
                                 <th>Assigned Date</th>
+                                <th>Status/Score</th>
+                                <th>Remarks</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -456,7 +459,15 @@
                                 <td style="font-weight: 700; color: var(--primary);">{{ $ja->project_code }}</td>
                                 <td>{{ $ja->project_title }}</td>
                                 <td><strong>{{ $ja->judge_name }}</strong></td>
-                                <td>{{ date('d M Y', strtotime($ja->assigned_at)) }}</td>
+                                <td>{{ date('d M Y', strtotime($ja->created_at)) }}</td>
+                                <td>
+                                    @if($ja->status === 'evaluated')
+                                        <span class="badge badge-Approved">Score: {{ $ja->technical_score }}/10</span>
+                                    @else
+                                        <span class="badge badge-Pending">Pending</span>
+                                    @endif
+                                </td>
+                                <td>{{ $ja->remarks ?? '-' }}</td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -735,12 +746,12 @@
             <!-- TAB 1: ASSIGNED PROJECTS FOR EVALUATION -->
             <div id="tabAssignedProjects" class="judge-tab-content">
                 <div class="card">
-                    <h2>Assigned Evaluation Queue</h2>
+                    <h2>Pending Evaluation Queue</h2>
                     <p style="color: var(--text-muted); margin-bottom: 20px;">Review and evaluate projects assigned specifically to you by administrators.</p>
                     
-                    @if(count($judgeAssignedProjects) > 0)
+                    @if(count($judgePendingProjects) > 0)
                         <div style="display: flex; flex-direction: column; gap: 16px;">
-                            @foreach($judgeAssignedProjects as $jp)
+                            @foreach($judgePendingProjects as $jp)
                             <div style="background: #f9fafb; padding: 20px; border-radius: 12px; border: 1px solid var(--border);">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                     <div>
@@ -752,25 +763,65 @@
                                 </div>
                                 <p style="font-size: 14px; color: #4b5563; margin-bottom: 16px;">{{ $jp->description }}</p>
 
-                                <form action="#" method="POST" style="background: #fff; padding: 16px; border-radius: 8px; border: 1px solid var(--border);">
+                                <form action="{{ route('judge.evaluate') }}" method="POST" style="background: #fff; padding: 16px; border-radius: 8px; border: 1px solid var(--border);">
                                     @csrf
+                                    <input type="hidden" name="project_id" value="{{ $jp->id }}">
+                                    <!-- In a real app we'd have assignment id passed. Since we do, let's grab it via a DB query or we can just fetch it by project_id and judge_id in the backend. 
+                                         Wait, MakerFestController pulls assignment ID? Oh, in the query we did `join('projects', ...)` so we can add `judge_assignments.id as assignment_id` to the select. 
+                                         I will add that in MakerFestController next. For now, use $jp->assignment_id -->
+                                    <input type="hidden" name="assignment_id" value="{{ $jp->assignment_id ?? 0 }}">
                                     <div style="display: flex; gap: 16px; align-items: flex-end;">
                                         <div style="flex: 1;">
                                             <label class="form-label" style="margin-bottom: 4px;">Technical Score (0-10)</label>
-                                            <input type="number" class="form-input" style="margin-bottom: 0;" max="10" min="0" value="8">
+                                            <input type="number" name="technical_score" class="form-input" style="margin-bottom: 0;" max="10" min="0" value="" required>
                                         </div>
                                         <div style="flex: 2;">
                                             <label class="form-label" style="margin-bottom: 4px;">Judge Evaluation Remarks</label>
-                                            <input type="text" class="form-input" style="margin-bottom: 0;" placeholder="Enter assessment feedback...">
+                                            <input type="text" name="remarks" class="form-input" style="margin-bottom: 0;" placeholder="Enter assessment feedback...">
                                         </div>
-                                        <button type="button" class="btn btn-primary" onclick="alert('Evaluation score submitted for {{ $jp->project_code }}!')">{{ __('messages.btn_submit_eval') }}</button>
+                                        <button type="submit" class="btn btn-primary">{{ __('messages.btn_submit_eval') }}</button>
                                     </div>
                                 </form>
                             </div>
                             @endforeach
                         </div>
                     @else
-                        <p style="color: var(--text-muted);">No projects assigned for evaluation yet.</p>
+                        <p style="color: var(--text-muted);">No projects pending evaluation.</p>
+                    @endif
+                </div>
+            </div>
+
+            <!-- TAB: EVALUATED PROJECTS -->
+            <div id="tabEvaluatedProjects" class="judge-tab-content" style="display: none;">
+                <div class="card">
+                    <h2>Evaluated Projects</h2>
+                    <p style="color: var(--text-muted); margin-bottom: 20px;">Projects you have already evaluated. You can edit your scores and remarks here.</p>
+                    
+                    @if(count($judgeEvaluatedProjects) > 0)
+                        <div style="display: flex; flex-direction: column; gap: 16px;">
+                            @foreach($judgeEvaluatedProjects as $jp)
+                            <div style="background: #f9fafb; padding: 20px; border-radius: 12px; border: 1px solid var(--border);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                    <div>
+                                        <span style="font-size: 12px; font-weight: 700; color: var(--primary);">{{ $jp->project_code }}</span>
+                                        <h3 style="margin-top: 2px;">{{ $jp->title }}</h3>
+                                        <span style="font-size: 13px; color: var(--text-muted);">Maker: <strong>{{ $jp->leader_name }}</strong> | Category: {{ $jp->category_name ?? 'General Tech' }}</span>
+                                    </div>
+                                    <span class="badge badge-Approved">Evaluated</span>
+                                </div>
+                                <p style="font-size: 14px; color: #4b5563; margin-bottom: 16px;">{{ $jp->description }}</p>
+                                <div style="background: #fff; padding: 16px; border-radius: 8px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <p style="margin: 0; font-size: 14px;"><strong>Technical Score:</strong> {{ $jp->technical_score }}/10</p>
+                                        <p style="margin: 4px 0 0 0; font-size: 14px; color: var(--text-muted);"><strong>Remarks:</strong> {{ $jp->remarks ?? 'None' }}</p>
+                                    </div>
+                                    <button type="button" class="btn btn-secondary" onclick="openEditEvaluationModal('{{ $jp->id }}', '{{ $jp->assignment_id ?? 0 }}', '{{ $jp->technical_score }}', '{{ addslashes($jp->remarks ?? '') }}')">Edit Evaluation</button>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <p style="color: var(--text-muted);">No evaluated projects yet.</p>
                     @endif
                 </div>
             </div>
@@ -819,11 +870,21 @@
 
                     const navMap = {
                         'tabAssignedProjects': 'sideJudgeAssigned',
+                        'tabEvaluatedProjects': 'sideJudgeEvaluated',
                         'tabAllProjects': 'sideJudgeAll'
                     };
                     const navEl = document.getElementById(navMap[tabId]);
                     if (navEl) navEl.classList.add('active');
+                    
+                    sessionStorage.setItem('activeJudgeTab', tabId);
                 }
+                
+                document.addEventListener('DOMContentLoaded', function() {
+                    const activeTab = sessionStorage.getItem('activeJudgeTab');
+                    if (activeTab && document.getElementById(activeTab)) {
+                        switchJudgeTab(activeTab);
+                    }
+                });
             </script>
             @endif
 
@@ -1605,6 +1666,30 @@
         <img id="lightboxImg" src="" style="max-width: 90%; max-height: 90%; border-radius: 8px; cursor: default;" onclick="event.stopPropagation();">
     </div>
 
+    <!-- EDIT EVALUATION MODAL -->
+    <div id="editEvaluationModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; padding: 20px;">
+        <div style="background: #ffffff; border-radius: 12px; width: 100%; max-width: 450px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.15);">
+            <h3 style="color: #111827; margin-top: 0; margin-bottom: 20px;">Edit Evaluation</h3>
+            <form action="{{ route('judge.evaluate') }}" method="POST">
+                @csrf
+                <input type="hidden" name="project_id" id="editEvalProjectId" value="">
+                <input type="hidden" name="assignment_id" id="editEvalAssignmentId" value="">
+                <div style="margin-bottom: 16px;">
+                    <label class="form-label">Technical Score (0-10)</label>
+                    <input type="number" name="technical_score" id="editEvalScore" class="form-input" max="10" min="0" required>
+                </div>
+                <div style="margin-bottom: 24px;">
+                    <label class="form-label">Remarks</label>
+                    <input type="text" name="remarks" id="editEvalRemarks" class="form-input" placeholder="Enter assessment feedback...">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                    <button type="button" onclick="closeEditEvaluationModal()" class="btn" style="background: #e5e7eb; color: #374151; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer;">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="padding: 10px 20px;">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <style>
         @keyframes spin {
             100% { transform: rotate(360deg); }
@@ -1618,6 +1703,18 @@
 
         function closeLightbox() {
             document.getElementById('imageLightbox').style.display = 'none';
+        }
+
+        function openEditEvaluationModal(projectId, assignmentId, score, remarks) {
+            document.getElementById('editEvalProjectId').value = projectId;
+            document.getElementById('editEvalAssignmentId').value = assignmentId;
+            document.getElementById('editEvalScore').value = score;
+            document.getElementById('editEvalRemarks').value = remarks;
+            document.getElementById('editEvaluationModal').style.display = 'flex';
+        }
+
+        function closeEditEvaluationModal() {
+            document.getElementById('editEvaluationModal').style.display = 'none';
         }
 
         document.addEventListener('keydown', function(e) {
@@ -1635,29 +1732,34 @@
         });
 
         document.addEventListener('DOMContentLoaded', function() {
-            const wizardForm = document.getElementById('projectWizardForm');
-            if (wizardForm) {
-                wizardForm.addEventListener('submit', function(e) {
+            const activeTab = sessionStorage.getItem('activeJudgeTab');
+            if (activeTab && document.getElementById(activeTab)) {
+                switchJudgeTab(activeTab);
+            }
+
+            const allForms = document.querySelectorAll('form');
+            allForms.forEach(form => {
+                form.addEventListener('submit', function(e) {
                     const submitter = e.submitter || document.activeElement;
                     
-                    // If the submit button doesn't bypass validation, and form is invalid, don't show loader
                     if (submitter && !submitter.hasAttribute('formnovalidate')) {
                         if (!this.checkValidity()) return;
                     }
                     
                     if (submitter && submitter.tagName === 'BUTTON') {
+                        if (submitter.innerHTML.includes('animation: spin')) return;
+                        
                         submitter.innerHTML = `<svg style="display:inline-block; margin-right:8px; animation: spin 1s linear infinite;" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg> Loading...`;
                         submitter.style.opacity = '0.7';
                         submitter.style.pointerEvents = 'none';
                         
-                        // Disable other submit buttons
                         const buttons = this.querySelectorAll('button[type="submit"]');
                         buttons.forEach(btn => {
                             if (btn !== submitter) btn.disabled = true;
                         });
                     }
                 });
-            }
+            });
         });
     </script>
 </body>

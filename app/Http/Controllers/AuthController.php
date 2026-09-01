@@ -294,6 +294,24 @@ class AuthController extends Controller
             'updated_at' => now(),
         ]);
 
+        try {
+            $userRecord = DB::table('users')->where('email', $email)->first();
+            $emailHtml = "
+                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;'>
+                    <h2 style='color: #4f46e5;'>Password Changed Successfully</h2>
+                    <p style='font-size: 15px;'>Hello " . ($userRecord->name ?? 'User') . ",</p>
+                    <p style='font-size: 15px;'>This email is to confirm that the password for your MakerFest account was recently changed.</p>
+                    <p style='font-size: 15px;'>If you did not authorize this change, please contact an administrator immediately to secure your account.</p>
+                    <p style='font-size: 13px; color: #6b7280; margin-top: 24px;'>&copy; " . date('Y') . " MakerFest. All rights reserved.</p>
+                </div>
+            ";
+            \Illuminate\Support\Facades\Mail::html($emailHtml, function ($message) use ($email) {
+                $message->to($email)->subject('MakerFest Security Alert: Password Changed');
+            });
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send password changed email to ' . $email . ': ' . $e->getMessage());
+        }
+
         // Delete OTP session data immediately after successful password reset
         Session::forget('forgot_otp_' . $email);
 

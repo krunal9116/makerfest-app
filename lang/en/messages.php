@@ -77,6 +77,7 @@ return [
     'status_submitted' => 'Submitted',
     'status_approved' => 'Approved',
     'status_revision_requested' => 'Revision Requested',
+    'status_evaluated' => 'Evaluated',
 
     // Judge Dashboard
     'judge_dashboard_title' => 'Judge Evaluation Dashboard',

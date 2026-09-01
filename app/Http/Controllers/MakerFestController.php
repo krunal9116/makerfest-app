@@ -72,6 +72,11 @@ class MakerFestController extends Controller
             ->select('judge_assignments.*', 'projects.title as project_title', 'projects.project_code', 'users.name as judge_name')
             ->get();
 
+        $assignedProjectIds = DB::table('judge_assignments')->pluck('project_id')->toArray();
+        $unassignedProjects = collect($projects)->filter(function($project) use ($assignedProjectIds) {
+            return !in_array($project->id, $assignedProjectIds);
+        });
+
         $makerProjects = [];
         if ($role === 'maker' && $userId) {
             $userEmail = $currentUser ? $currentUser->email : null;
@@ -103,21 +108,37 @@ class MakerFestController extends Controller
             }
         }
 
-        $judgeAssignedProjects = [];
+        $judgePendingProjects = [];
+        $judgeEvaluatedProjects = [];
         if ($role === 'judge') {
             $currentUserId = Session::get('user_id');
-            $judgeAssignedProjects = DB::table('judge_assignments')
+            $allJudgeProjects = DB::table('judge_assignments')
                 ->join('projects', 'judge_assignments.project_id', '=', 'projects.id')
                 ->leftJoin('categories', 'projects.category_id', '=', 'categories.id')
                 ->leftJoin('users', 'projects.leader_id', '=', 'users.id')
                 ->where('judge_assignments.judge_id', $currentUserId)
                 ->where('projects.status', '!=', 'Draft')
-                ->select('projects.*', 'categories.name as category_name', 'users.name as leader_name')
+                ->select(
+                    'projects.*', 
+                    'categories.name as category_name', 
+                    'users.name as leader_name',
+                    'judge_assignments.id as assignment_id',
+                    'judge_assignments.technical_score',
+                    'judge_assignments.remarks',
+                    'judge_assignments.status as assignment_status'
+                )
                 ->orderBy('projects.id', 'desc')
                 ->get();
-            foreach ($judgeAssignedProjects as $jp) {
+                
+            foreach ($allJudgeProjects as $jp) {
                 $jp->members = DB::table('project_members')->where('project_id', $jp->id)->get();
                 $jp->media = DB::table('project_media')->where('project_id', $jp->id)->get();
+                
+                if ($jp->assignment_status === 'evaluated') {
+                    $judgeEvaluatedProjects[] = $jp;
+                } else {
+                    $judgePendingProjects[] = $jp;
+                }
             }
         }
 
@@ -150,13 +171,15 @@ class MakerFestController extends Controller
             'allEvents' => $allEvents,
             'categories' => $categories,
             'projects' => $projects,
+            'unassignedProjects' => $unassignedProjects,
             'volunteers' => $volunteers,
             'judges' => $judges,
             'allUsers' => $allUsers,
             'volunteerTasks' => $volunteerTasks,
             'judgeAssignments' => $judgeAssignments,
             'makerProjects' => $makerProjects,
-            'judgeAssignedProjects' => $judgeAssignedProjects,
+            'judgePendingProjects' => $judgePendingProjects,
+            'judgeEvaluatedProjects' => $judgeEvaluatedProjects,
             'makerProject' => $makerProject,
             'makerMembers' => $makerMembers,
             'makersCount' => $makersCount,
@@ -545,7 +568,6 @@ class MakerFestController extends Controller
         DB::table('judge_assignments')->insert([
             'project_id' => $projectId,
             'judge_id' => $judgeId,
-            'assigned_at' => now(),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -578,7 +600,43 @@ class MakerFestController extends Controller
 
         return redirect()->back()->with('success', 'Judge assigned to project successfully!');
     }
+    // Submit Judge Evaluation
+    public function submitEvaluation(Request $request)
+    {
+        $request->validate([
+            'assignment_id' => 'required|integer',
+            'project_id' => 'required|integer',
+            'technical_score' => 'required|integer|min:0|max:10',
+            'remarks' => 'nullable|string'
+        ]);
 
+        $assignmentId = $request->input('assignment_id');
+        $projectId = $request->input('project_id');
+        $score = $request->input('technical_score');
+        $remarks = $request->input('remarks');
+        $judgeId = Session::get('user_id');
+
+        // Update the assignment
+        DB::table('judge_assignments')
+            ->where('id', $assignmentId)
+            ->where('judge_id', $judgeId)
+            ->update([
+                'technical_score' => $score,
+                'remarks' => $remarks,
+                'status' => 'evaluated',
+                'updated_at' => now(),
+            ]);
+
+        // Update the project status
+        DB::table('projects')
+            ->where('id', $projectId)
+            ->update([
+                'status' => 'Evaluated',
+                'updated_at' => now()
+            ]);
+
+        return redirect()->back()->with('success', 'Evaluation submitted successfully!');
+    }
     // Assign Volunteer Task Handler
     public function assignTask(Request $request)
     {

@@ -55,6 +55,7 @@ Route::post('/admin/project/{id}/status', [MakerFestController::class, 'updatePr
 // New Admin Feature Routes
 Route::post('/admin/event', [MakerFestController::class, 'storeEvent'])->name('admin.storeEvent');
 Route::post('/admin/judge/assign', [MakerFestController::class, 'assignJudge'])->name('admin.assignJudge');
+Route::post('/judge/evaluate', [MakerFestController::class, 'submitEvaluation'])->name('judge.evaluate');
 Route::post('/admin/task/assign', [MakerFestController::class, 'assignTask'])->name('admin.assignTask');
 Route::post('/admin/broadcast', [MakerFestController::class, 'broadcastMail'])->name('admin.broadcastMail');
 Route::post('/admin/user/{id}/delete', [MakerFestController::class, 'deleteUser'])->name('admin.deleteUser');
