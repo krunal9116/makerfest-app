@@ -4,7 +4,7 @@ Follow these instructions to set up and run the MakerFest application on your lo
 
 1. Clone the Repository
 Open your terminal and clone the repository from GitHub:
-git clone https://github.com/krunal9116/makerfest-app.git
+git clone https://github.com/krunal9116/makerfest-app.git<br>
 cd makerfest-app
 
 2. Install Dependencies
