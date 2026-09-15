@@ -205,11 +205,15 @@
             <div class="sidebar-title">{{ __('messages.admin_management') }}</div>
             <a href="javascript:void(0)" class="nav-item active" onclick="switchAdminTab('tabDashboard')" id="sideNavDashboard">{{ __('messages.nav_dashboard') }}</a>
             <a href="javascript:void(0)" class="nav-item" onclick="switchAdminTab('tabEvents')" id="sideNavEvents">{{ __('messages.nav_events') }}</a>
+            <a href="javascript:void(0)" class="nav-item" onclick="switchAdminTab('tabCategories')" id="sideNavCategories">Categories</a>
             <a href="javascript:void(0)" class="nav-item" onclick="switchAdminTab('tabProjects')" id="sideNavProjects">All Projects ({{ count($projects) }})</a>
+            <a href="javascript:void(0)" class="nav-item" onclick="switchAdminTab('tabAdminScreening')" id="sideNavAdminScreening">Admin Screening</a>
             <a href="javascript:void(0)" class="nav-item" onclick="switchAdminTab('tabUsers')" id="sideNavUsers">{{ __('messages.nav_users') }}</a>
             <a href="javascript:void(0)" class="nav-item" onclick="switchAdminTab('tabJudgeAssign')" id="sideNavJudge">{{ __('messages.nav_judge_assign') }}</a>
             <a href="javascript:void(0)" class="nav-item" onclick="switchAdminTab('tabTaskAssign')" id="sideNavTask">{{ __('messages.nav_task_assign') }}</a>
+            <a href="javascript:void(0)" class="nav-item" onclick="switchAdminTab('tabRubrics')" id="sideNavRubrics">Rubrics Config</a>
             <a href="javascript:void(0)" class="nav-item" onclick="switchAdminTab('tabBroadcast')" id="sideNavBroadcast">Broadcast Email</a>
+            <a href="javascript:void(0)" class="nav-item" onclick="switchAdminTab('tabAuditLogs')" id="sideNavAuditLogs">Audit Logs</a>
             <a href="javascript:void(0)" class="nav-item" onclick="switchAdminTab('tabSettings')" id="sideNavSettings">{{ __('messages.nav_settings') }}</a>
         </aside>
         @endif
@@ -226,17 +230,20 @@
         <main class="main-content">
 
             @if(session('success'))
-            <div style="background: #d1fae5; color: #047857; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600;">
+            <div style="background: #d1fae5; color: #047857; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; position: relative;" id="toast-success">
                 {{ session('success') }}
+                <button onclick="document.getElementById('toast-success').style.display='none'" style="position: absolute; right: 12px; top: 12px; background: none; border: none; font-size: 16px; cursor: pointer; color: #047857;">&times;</button>
             </div>
             @endif
             @if(session('error'))
-            <div style="background: #fee2e2; color: #b91c1c; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600;">
+            <div style="background: #fee2e2; color: #b91c1c; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; position: relative;" id="toast-error">
                 {{ session('error') }}
+                <button onclick="document.getElementById('toast-error').style.display='none'" style="position: absolute; right: 12px; top: 12px; background: none; border: none; font-size: 16px; cursor: pointer; color: #b91c1c;">&times;</button>
             </div>
             @endif
             @if($errors->any())
-            <div style="background: #fee2e2; color: #b91c1c; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600;">
+            <div style="background: #fee2e2; color: #b91c1c; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; position: relative;" id="toast-errors">
+                <button onclick="document.getElementById('toast-errors').style.display='none'" style="position: absolute; right: 12px; top: 12px; background: none; border: none; font-size: 16px; cursor: pointer; color: #b91c1c;">&times;</button>
                 <ul style="margin: 0; padding-left: 20px;">
                     @foreach($errors->all() as $error)
                         <li>{{ $error }}</li>
@@ -304,6 +311,7 @@
                                 <th>Start Date</th>
                                 <th>End Date</th>
                                 <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -311,7 +319,7 @@
                             <tr>
                                 <td style="font-weight: 700;">{{ $ev->title ?? $ev->name ?? 'MakerFest Edition' }}</td>
                                 <td>{{ $ev->location ?? 'Vadodara' }}</td>
-                                <td>{{ $ev->registration_open ?? $ev->start_date ?? 'N/A' }}</td>
+                                <td>{{ $ev->registration_start ?? $ev->start_date ?? 'N/A' }}</td>
                                 <td>{{ $ev->submission_deadline ?? $ev->end_date ?? 'N/A' }}</td>
                                 <td>
                                     @if($ev->is_active)
@@ -319,6 +327,41 @@
                                     @else
                                         <span class="badge badge-Draft">Completed / Upcoming</span>
                                     @endif
+                                </td>
+                                <td>
+                                    <button class="btn btn-outline" style="padding: 6px 12px; font-size: 13px;" onclick='openExtendDeadlineModal(@json($ev))'>Extend Deadlines</button>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 2.5: CATEGORIES MANAGEMENT -->
+            <div id="tabCategories" class="admin-tab-content" style="display: none;">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3>🏷️ Category Management</h3>
+                        <button class="btn btn-primary" onclick="alert('Category creation not fully implemented yet.')">+ Create Category</button>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Category Name</th>
+                                <th>Description</th>
+                                <th>Event ID</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($categories as $cat)
+                            <tr>
+                                <td style="font-weight: 700;">{{ $cat->name }}</td>
+                                <td>{{ $cat->description ?? '-' }}</td>
+                                <td>{{ $cat->event_id }}</td>
+                                <td>
+                                    <button class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="alert('Edit Category')">Edit</button>
                                 </td>
                             </tr>
                             @endforeach
@@ -366,6 +409,70 @@
                 </div>
             </div>
 
+            <!-- TAB 3.5: ADMIN SCREENING -->
+            <div id="tabAdminScreening" class="admin-tab-content" style="display: none;">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <div>
+                            <h3>🎯 Admin Screening</h3>
+                            <p style="color: var(--text-muted); margin: 4px 0 0 0; font-size: 14px;">Review evaluated projects and select them for the offline MakerFest round.</p>
+                        </div>
+                        <select class="form-select" style="width: 250px; margin: 0;" onchange="filterScreeningByCategory(this.value)">
+                            <option value="all">All Categories</option>
+                            @foreach($categories as $cat)
+                                <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <table class="data-table" id="adminScreeningTable">
+                        <thead>
+                            <tr>
+                                <th>Project Code</th>
+                                <th>Project Title</th>
+                                <th>Category</th>
+                                <th>Judge Score</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($projects as $p)
+                                @if(in_array($p->status, ['Evaluated', 'Selected']))
+                                <tr class="screening-row" data-category="{{ $p->category_id }}">
+                                    <td style="font-weight: 700;">{{ $p->project_code }}</td>
+                                    <td>{{ $p->title }}</td>
+                                    <td>{{ $p->category_name }}</td>
+                                    <td>
+                                        @php
+                                            $ja = DB::table('judge_assignments')->where('project_id', $p->id)->where('status', 'evaluated')->first();
+                                        @endphp
+                                        @if($ja)
+                                            <strong>{{ $ja->technical_score }}/10</strong><br>
+                                            <span style="font-size: 11px; color: var(--text-muted);">{{ $ja->remarks }}</span>
+                                        @else
+                                            <span style="color: var(--text-muted);">N/A</span>
+                                        @endif
+                                    </td>
+                                    <td style="display: flex; gap: 8px;">
+                                        <button class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick='openProjectDetailsModal(@json($p))'>View</button>
+                                        @if($p->status === 'Selected')
+                                            <span class="badge badge-Approved" style="padding: 6px 10px;">Selected for Offline</span>
+                                        @else
+                                            <form action="/admin/project/{{ $p->id }}/status" method="POST" style="margin: 0;">
+                                                @csrf
+                                                <input type="hidden" name="status" value="Selected">
+                                                <button type="submit" class="btn" style="background: #10b981; color: white; border: none; padding: 6px 12px; font-size: 12px; border-radius: 4px; cursor: pointer;">Select for Offline</button>
+                                            </form>
+                                        @endif
+                                    </td>
+                                </tr>
+                                @endif
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- TAB 4: MANAGE USERS -->
             <div id="tabUsers" class="admin-tab-content" style="display: none;">
                 <div class="card">
@@ -373,7 +480,15 @@
                         <h3>👥 Manage Users & Staff</h3>
                         
                         <div style="display: flex; gap: 12px; align-items: center;">
-                            <input type="text" id="userSearchInput" onkeyup="filterUserList()" placeholder="🔍 Search by name or email..." class="form-input" style="width: 240px; margin: 0;">
+                            <form method="GET" action="" id="yearFilterForm" style="margin: 0;">
+                                <select name="user_year" onchange="document.getElementById('yearFilterForm').submit()" class="form-select" style="margin: 0; padding: 6px 12px; height: auto;">
+                                    <option value="all">All Years</option>
+                                    @foreach($userYears as $yr)
+                                        <option value="{{ $yr }}" {{ request('user_year') == $yr ? 'selected' : '' }}>{{ $yr }}</option>
+                                    @endforeach
+                                </select>
+                            </form>
+                            <input type="text" id="userSearchInput" onkeyup="filterUserList()" placeholder="🔍 Search by name or email..." class="form-input" style="width: 240px; margin: 0; padding: 6px 12px;">
                             <div class="lang-group">
                                 <button type="button" class="lang-btn active" id="userFilterAll" onclick="filterUserRole('all')">All</button>
                                 <button type="button" class="lang-btn" id="userFilterMaker" onclick="filterUserRole('maker')">Makers</button>
@@ -441,8 +556,19 @@
                 </div>
 
                 <div class="card">
-                    <h4>Current Judge Assignments</h4>
-                    <table class="data-table" style="margin-top: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4>Current Judge Assignments</h4>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <label style="font-size: 13px; color: var(--text-muted); font-weight: 600;">Filter:</label>
+                            <select id="judgeAssignCategoryFilter" class="form-select" style="margin: 0; padding: 6px 12px; width: 200px; height: auto;" onchange="filterJudgeAssignments()">
+                                <option value="all">All Categories</option>
+                                @foreach($categories as $cat)
+                                    <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    <table class="data-table" id="judgeAssignmentsTable" style="margin-top: 12px;">
                         <thead>
                             <tr>
                                 <th>Project Code</th>
@@ -450,14 +576,17 @@
                                 <th>Assigned Judge</th>
                                 <th>Assigned Date</th>
                                 <th>Status/Score</th>
-                                <th>Remarks</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($judgeAssignments as $ja)
-                            <tr>
+                            @php
+                                $fullProj = collect($projects)->firstWhere('id', $ja->project_id);
+                            @endphp
+                            <tr class="ja-row" data-category="{{ $ja->category_id }}">
                                 <td style="font-weight: 700; color: var(--primary);">{{ $ja->project_code }}</td>
-                                <td>{{ $ja->project_title }}</td>
+                                <td>{{ $ja->project_title }}<br><span style="font-size: 11px; color: var(--text-muted);">{{ $ja->category_name }}</span></td>
                                 <td><strong>{{ $ja->judge_name }}</strong></td>
                                 <td>{{ date('d M Y', strtotime($ja->created_at)) }}</td>
                                 <td>
@@ -467,7 +596,12 @@
                                         <span class="badge badge-Pending">Pending</span>
                                     @endif
                                 </td>
-                                <td>{{ $ja->remarks ?? '-' }}</td>
+                                <td>
+                                    @if($fullProj)
+                                    <button type="button" class="btn btn-outline" style="padding: 4px 10px; font-size: 12px; border-radius: 4px;" onclick='openProjectDetailsModal(@json($fullProj))'>View Details</button>
+                                    @endif
+                                    <button type="button" class="btn btn-outline" style="padding: 4px 10px; font-size: 12px; border-radius: 4px; border-color: #f59e0b; color: #d97706; margin-left: 4px;" onclick="alert('Reassign not fully implemented')">Reassign</button>
+                                </td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -526,6 +660,89 @@
 
                         <button type="submit" class="btn btn-primary" style="margin-top: 16px;">Send Broadcast Email</button>
                     </form>
+                </div>
+            </div>
+
+            <!-- TAB 6.5: RUBRICS MANAGEMENT -->
+            <div id="tabRubrics" class="admin-tab-content" style="display: none;">
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3>📋 Rubric Templates & Weightage</h3>
+                        <button class="btn btn-primary" onclick="alert('Create Template not implemented')">+ New Template</button>
+                    </div>
+                    
+                    @foreach($rubricTemplates ?? [] as $rt)
+                    <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                        <h4 style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                            {{ $rt->name }}
+                            @if($rt->is_default)
+                            <span class="badge badge-Approved" style="font-size: 10px;">Default</span>
+                            @endif
+                        </h4>
+                        
+                        <table class="data-table" style="background: #fff; border-radius: 6px; overflow: hidden;">
+                            <thead>
+                                <tr>
+                                    <th>Criteria Name</th>
+                                    <th>Description</th>
+                                    <th>Max Score</th>
+                                    <th>Weightage (%)</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($rt->criteria as $crit)
+                                <tr>
+                                    <td style="font-weight: 600;">{{ $crit->name }}</td>
+                                    <td style="font-size: 13px;">{{ $crit->description }}</td>
+                                    <td>{{ $crit->max_score }}</td>
+                                    <td>{{ $crit->weightage }}%</td>
+                                    <td>
+                                        <button class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="alert('Edit Weightage')">Edit</button>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+
+            <!-- TAB 7.5: AUDIT LOGS -->
+            <div id="tabAuditLogs" class="admin-tab-content" style="display: none;">
+                <div class="card">
+                    <h3>Security Audit Logs</h3>
+                    <p style="color: var(--text-muted); margin-bottom: 20px;">System activity tracking for security and monitoring purposes.</p>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>User</th>
+                                <th>Action</th>
+                                <th>Entity</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($auditLogs ?? [] as $log)
+                            <tr>
+                                <td style="white-space: nowrap; font-size: 13px;">{{ date('d M Y, h:i A', strtotime($log->created_at)) }}</td>
+                                <td>
+                                    @if($log->user_name)
+                                        <strong>{{ $log->user_name }}</strong><br>
+                                        <span style="font-size: 12px; color: var(--text-muted);">{{ $log->user_email }}</span>
+                                    @else
+                                        <span style="color: var(--text-muted);">System / Guest</span>
+                                    @endif
+                                </td>
+                                <td><span class="badge badge-Draft" style="background: #f1f5f9; color: #475569;">{{ strtoupper($log->action) }}</span></td>
+                                <td>{{ $log->entity_type }} #{{ $log->entity_id }}</td>
+                                <td>{{ $log->details }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -618,11 +835,14 @@
                     const navMap = {
                         'tabDashboard': 'sideNavDashboard',
                         'tabEvents': 'sideNavEvents',
+                        'tabCategories': 'sideNavCategories',
                         'tabProjects': 'sideNavProjects',
                         'tabUsers': 'sideNavUsers',
                         'tabJudgeAssign': 'sideNavJudge',
                         'tabTaskAssign': 'sideNavTask',
+                        'tabRubrics': 'sideNavRubrics',
                         'tabBroadcast': 'sideNavBroadcast',
+                        'tabAuditLogs': 'sideNavAuditLogs',
                         'tabSettings': 'sideNavSettings',
                     };
                     const navEl = document.getElementById(navMap[tabId]);
@@ -667,6 +887,31 @@
                     });
                 }
 
+                function filterJudgeAssignments() {
+                    const catId = document.getElementById('judgeAssignCategoryFilter').value;
+                    const rows = document.querySelectorAll('#judgeAssignmentsTable .ja-row');
+                    rows.forEach(row => {
+                        const rowCatId = row.getAttribute('data-category');
+                        if (catId === 'all' || catId === rowCatId) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                }
+
+                function filterScreeningByCategory(catId) {
+                    const rows = document.querySelectorAll('#adminScreeningTable .screening-row');
+                    rows.forEach(row => {
+                        const rowCatId = row.getAttribute('data-category');
+                        if (catId === 'all' || catId === rowCatId) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                }
+
                 function filterProjectList() {
                     const query = document.getElementById('projectSearchInput').value.toLowerCase();
                     const rows = document.querySelectorAll('#adminProjectsTable .project-row');
@@ -707,7 +952,7 @@
                                     <td style="font-weight: 700; color: var(--primary);">{{ $mp->project_code }}</td>
                                     <td><strong>{{ $mp->title }}</strong></td>
                                     <td>{{ $mp->category_name ?? 'General' }}</td>
-                                    <td><span class="badge badge-{{ $mp->status }}">{{ __('messages.status_' . strtolower($mp->status)) ?? $mp->status }}</span></td>
+                                    <td><span class="badge badge-{{ $mp->display_status ?? $mp->status }}">{{ $mp->display_status ?? $mp->status }}</span></td>
                                     <td>{{ $mp->submitted_at ? date('d M Y', strtotime($mp->submitted_at)) : __('messages.status_draft') }}</td>
                                     <td style="text-align: center; display: flex; justify-content: center; gap: 8px;">
                                         @if($mp->status === 'Draft')
@@ -759,7 +1004,10 @@
                                         <h3 style="margin-top: 2px;">{{ $jp->title }}</h3>
                                         <span style="font-size: 13px; color: var(--text-muted);">Maker: <strong>{{ $jp->leader_name }}</strong> | Category: {{ $jp->category_name ?? 'General Tech' }}</span>
                                     </div>
-                                    <span class="badge badge-{{ $jp->status }}">{{ $jp->status }}</span>
+                                    <div style="display: flex; gap: 8px; align-items: center;">
+                                        <button type="button" class="btn btn-outline" style="padding: 6px 12px; font-size: 13px; border-radius: 6px; border: 1px solid var(--primary); color: var(--primary); cursor: pointer;" onclick='openProjectDetailsModal(@json($jp))'>View Details</button>
+                                        <span class="badge badge-Draft">Not Started</span>
+                                    </div>
                                 </div>
                                 <p style="font-size: 14px; color: #4b5563; margin-bottom: 16px;">{{ $jp->description }}</p>
 
@@ -807,7 +1055,10 @@
                                         <h3 style="margin-top: 2px;">{{ $jp->title }}</h3>
                                         <span style="font-size: 13px; color: var(--text-muted);">Maker: <strong>{{ $jp->leader_name }}</strong> | Category: {{ $jp->category_name ?? 'General Tech' }}</span>
                                     </div>
-                                    <span class="badge badge-Approved">Evaluated</span>
+                                    <div style="display: flex; gap: 8px; align-items: center;">
+                                        <button type="button" class="btn btn-outline" style="padding: 6px 12px; font-size: 13px; border-radius: 6px; border: 1px solid var(--primary); color: var(--primary); cursor: pointer;" onclick='openProjectDetailsModal(@json($jp))'>View Details</button>
+                                        <span class="badge badge-Approved">Submitted</span>
+                                    </div>
                                 </div>
                                 <p style="font-size: 14px; color: #4b5563; margin-bottom: 16px;">{{ $jp->description }}</p>
                                 <div style="background: #fff; padding: 16px; border-radius: 8px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
@@ -1498,13 +1749,17 @@
             }
             document.getElementById('modalMediaList').innerHTML = mediaHtml;
 
+            if (document.getElementById('modalEvalProjectId')) {
+                document.getElementById('modalEvalProjectId').value = project.id;
+                document.getElementById('modalEvalAssignmentId').value = project.assignment_id || 0;
+            }
+
             const approveBtn = document.getElementById('modalApproveBtn');
             const approveForm = document.getElementById('modalApproveForm');
             const rejectBtn = document.getElementById('modalRejectBtn');
             const rejectForm = document.getElementById('modalRejectForm');
 
-            // Admins can no longer review/approve projects directly here (they should assign to a judge instead)
-            if (approveBtn && approveForm && rejectBtn && rejectForm && ('{{ $role }}' === 'judge')) {
+            if (approveBtn && approveForm && rejectBtn && rejectForm && ('{{ $role }}' === 'admin')) {
                 approveForm.action = `/admin/project/${project.id}/status`;
                 rejectForm.action = `/admin/project/${project.id}/status`;
                 approveBtn.style.display = 'inline-block';
@@ -1626,6 +1881,38 @@
                 <div id="modalMediaList"></div>
             </div>
 
+            @if($role === 'judge')
+            <div id="modalJudgeEvaluationSection" style="margin-top: 24px; background: #f0fdf4; padding: 16px; border-radius: 12px; border: 1px solid #bbf7d0;">
+                <h4 style="color: #166534; margin-bottom: 12px; font-size: 15px;">Evaluate Project</h4>
+                
+                @if(isset($rubricTemplates) && count($rubricTemplates) > 0)
+                    <div style="margin-bottom: 16px; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; padding: 12px;">
+                        <h5 style="margin: 0 0 8px 0; color: #374151; font-size: 14px;">Evaluation Criteria Reference</h5>
+                        <ul style="margin: 0; padding-left: 16px; color: #4b5563; font-size: 13px;">
+                            @foreach($rubricTemplates->first()->criteria as $crit)
+                                <li style="margin-bottom: 4px;"><strong>{{ $crit->name }}</strong> (Max: {{ $crit->max_score }}) - {{ $crit->description }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                <form id="modalJudgeEvaluateForm" action="{{ route('judge.evaluate') }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="project_id" id="modalEvalProjectId" value="">
+                    <input type="hidden" name="assignment_id" id="modalEvalAssignmentId" value="">
+                    <div style="margin-bottom: 12px;">
+                        <label class="form-label" style="color: #166534;">Technical Score (0-10)</label>
+                        <input type="number" name="technical_score" class="form-input" style="background: #fff; margin-bottom: 0;" max="10" min="0" required>
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label class="form-label" style="color: #166534;">Remarks</label>
+                        <textarea name="remarks" class="form-textarea" style="background: #fff; margin-bottom: 0;" rows="2" placeholder="Enter assessment feedback..."></textarea>
+                    </div>
+                    <button type="submit" class="btn" style="background: #16a34a; color: #fff; width: 100%; border: none; padding: 12px; border-radius: 8px; font-weight: 700; cursor: pointer;">Submit Evaluation</button>
+                </form>
+            </div>
+            @endif
+
             <div style="margin-top: 24px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e5e7eb; padding-top: 16px;">
                 <div style="display: flex; gap: 10px;">
                     <form id="modalApproveForm" method="POST" action="">
@@ -1696,6 +1983,19 @@
         }
     </style>
     <script>
+        function toggleDropdown(event) {
+            event.stopPropagation();
+            document.getElementById('hbmDropdown').classList.toggle('active');
+        }
+
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('hbmDropdown');
+            const btn = document.getElementById('hbmBtn');
+            if (dropdown && dropdown.classList.contains('active') && !dropdown.contains(event.target) && !btn.contains(event.target)) {
+                dropdown.classList.remove('active');
+            }
+        });
+
         function openLightbox(url) {
             document.getElementById('lightboxImg').src = url;
             document.getElementById('imageLightbox').style.display = 'flex';
@@ -1761,6 +2061,58 @@
                 });
             });
         });
+    </script>
+    <!-- EXTEND DEADLINE MODAL -->
+    <div id="extendDeadlineModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; padding: 20px;">
+        <div style="background: #ffffff; border-radius: 12px; width: 100%; max-width: 500px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.15);">
+            <h3 style="color: #111827; margin-top: 0; margin-bottom: 20px;">Extend Event Deadlines</h3>
+            <form action="/admin/event/extend-deadline" method="POST">
+                @csrf
+                <input type="hidden" name="event_id" id="extendEventId" value="">
+                
+                <div style="margin-bottom: 16px;">
+                    <label class="form-label">Registration Start</label>
+                    <input type="date" name="registration_start" id="extendRegStart" class="form-input">
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label class="form-label">Submission Deadline</label>
+                    <input type="date" name="submission_deadline" id="extendSubDeadline" class="form-input">
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <label class="form-label">Screening Deadline (Admin)</label>
+                    <input type="date" name="screening_deadline" id="extendScreeningDeadline" class="form-input">
+                </div>
+                <div style="margin-bottom: 24px;">
+                    <label class="form-label">Evaluation Start</label>
+                    <input type="date" name="evaluation_start" id="extendEvalStart" class="form-input">
+                </div>
+                <div style="margin-bottom: 24px;">
+                    <label class="form-label">Evaluation Deadline</label>
+                    <input type="date" name="evaluation_deadline" id="extendEvalDeadline" class="form-input">
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                    <button type="button" onclick="closeExtendDeadlineModal()" class="btn" style="background: #e5e7eb; color: #374151; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer;">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="padding: 10px 20px;">Update & Notify</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        function openExtendDeadlineModal(ev) {
+            document.getElementById('extendEventId').value = ev.id;
+            document.getElementById('extendRegStart').value = ev.registration_start || ev.start_date || '';
+            document.getElementById('extendSubDeadline').value = ev.submission_deadline || ev.end_date || '';
+            document.getElementById('extendScreeningDeadline').value = ev.screening_deadline || '';
+            document.getElementById('extendEvalStart').value = ev.evaluation_start || '';
+            document.getElementById('extendEvalDeadline').value = ev.evaluation_deadline || '';
+            document.getElementById('extendDeadlineModal').style.display = 'flex';
+        }
+
+        function closeExtendDeadlineModal() {
+            document.getElementById('extendDeadlineModal').style.display = 'none';
+        }
     </script>
 </body>
 </html>

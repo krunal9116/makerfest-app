@@ -1,0 +1,55 @@
+need to add a filter that shows user, jugdges ad volunteers year wise.
+
+
+when succesfully exedcuted an event the success message shows till ed give a cross sign on the end to remove it
+
+one team can only submit one project per event
+
+at a dashboared navigation button on HBM when not in dashboared and also when in profile page HBM it shows profile navigation button here which shoyld not happen and apply this on all endpoints
+
+in judge side on all evwnt projects in popup it sshows approve and reject project button which should not show jude can only evaluate projects which are assigned to them
+
+apply judge evaluation metrics
+
+add notification in judge.
+enable admin to reassign projects to judge.(make diff page of this. that should show only assigned projects which admin can reassign)
+
+in pending projects page in judge panel add a button that opens a pop showcasing the projects details(photos, videos, etc). that judje can analyze and score the project
+
+
+add project status:-
+1-- assigned - when admin assigned project to judge(should shown to maker too)
+2-- not started - just a reminder project status for judge only that he/she has not started ealuation of that perticular project.(for judge only)
+3-- submited - it will also be shown to judge only that he has evaluated the project aand in maker side it will be showwn as evaluated.
+
+
+in event management page we need to make some more changes and add deadlines-
+
+registration start
+submission deadline
+admin screening(deadlie for admin to assign projects to judge)
+evaluation starting date and ending date(for judge only)
+final decision - after evalution of judge admin have decidde within deadline that which projects are invited to makerfest platform.
+
+
+category creation page for admin(admin will not be able to delete category but admin can retire it and active it for diffrent events).
+
+evaluation rubrics management page for admin.
+
+
+also give an filter to judge assignment page according to the category of project.
+
+
+and in judge assignment page give button to view project details in the project list on that page.
+
+
+
+need a new page name admin screening(deadlie for admin to assign projects to judge) which enables admin to select which prooject will apper to makerfest offline round, in which filter option should be there order by category.
+
+
+admin should be able to extend the deadlines of all deadlines and mails should be send to eachand everyuser,judge,volunterr that this orr that is extended.
+
+
+need to create a audit log page for admin for security purpose of which new table will be created in db and login,logouts, project submission, change in email,pass, etc will be logged 
+
+add sql injection security also csrf.

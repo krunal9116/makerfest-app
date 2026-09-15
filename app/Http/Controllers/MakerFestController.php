@@ -63,13 +63,25 @@ class MakerFestController extends Controller
 
         $volunteers = DB::table('users')->where('role', 'volunteer')->get();
         $judges = DB::table('users')->where('role', 'judge')->get();
-        $allUsers = DB::table('users')->orderBy('id', 'desc')->get();
+        $allUsersQuery = DB::table('users')->orderBy('id', 'desc');
+        if ($request->has('user_year') && $request->input('user_year') != 'all') {
+            $allUsersQuery->whereYear('created_at', $request->input('user_year'));
+        }
+        $allUsers = $allUsersQuery->get();
+
+        $userYears = DB::table('users')
+            ->select(DB::raw('YEAR(created_at) as year'))
+            ->whereNotNull('created_at')
+            ->distinct()
+            ->orderBy('year', 'desc')
+            ->pluck('year');
         $allEvents = DB::table('events')->orderBy('id', 'desc')->get();
         $volunteerTasks = DB::table('volunteer_tasks')->get();
         $judgeAssignments = DB::table('judge_assignments')
             ->leftJoin('projects', 'judge_assignments.project_id', '=', 'projects.id')
             ->leftJoin('users', 'judge_assignments.judge_id', '=', 'users.id')
-            ->select('judge_assignments.*', 'projects.title as project_title', 'projects.project_code', 'users.name as judge_name')
+            ->leftJoin('categories', 'projects.category_id', '=', 'categories.id')
+            ->select('judge_assignments.*', 'projects.title as project_title', 'projects.project_code', 'users.name as judge_name', 'categories.id as category_id', 'categories.name as category_name')
             ->get();
 
         $assignedProjectIds = DB::table('judge_assignments')->pluck('project_id')->toArray();
@@ -77,20 +89,40 @@ class MakerFestController extends Controller
             return !in_array($project->id, $assignedProjectIds);
         });
 
+        $auditLogs = [];
+        $rubricTemplates = [];
+        if ($role === 'admin') {
+            $auditLogs = DB::table('audit_logs')
+                ->leftJoin('users', 'audit_logs.user_id', '=', 'users.id')
+                ->select('audit_logs.*', 'users.name as user_name', 'users.email as user_email')
+                ->orderBy('audit_logs.id', 'desc')
+                ->limit(200)
+                ->get();
+        }
+        
+        if ($role === 'admin' || $role === 'judge') {
+            $rubricTemplates = DB::table('rubric_templates')->get();
+            foreach ($rubricTemplates as $rt) {
+                $rt->criteria = DB::table('rubric_criteria')
+                    ->where('rubric_template_id', $rt->id)
+                    ->orderBy('sort_order', 'asc')
+                    ->get();
+            }
+        }
+
         $makerProjects = [];
         if ($role === 'maker' && $userId) {
             $userEmail = $currentUser ? $currentUser->email : null;
-
             $makerProjects = DB::table('projects')
                 ->leftJoin('categories', 'projects.category_id', '=', 'categories.id')
-                ->where(function ($query) use ($userId, $userEmail) {
+                ->where(function($query) use ($userId, $userEmail) {
                     $query->where('projects.leader_id', $userId)
-                          ->orWhereIn('projects.id', function ($subQuery) use ($userId, $userEmail) {
-                              $subQuery->select('project_id')
-                                       ->from('project_members')
-                                       ->where('user_id', $userId);
+                          ->orWhereIn('projects.id', function($sub) use ($userId, $userEmail) {
+                              $sub->select('project_id')
+                                  ->from('project_members')
+                                  ->where('user_id', $userId);
                               if ($userEmail) {
-                                  $subQuery->orWhere('email', $userEmail);
+                                  $sub->orWhere('email', $userEmail);
                               }
                           });
                 })
@@ -105,6 +137,16 @@ class MakerFestController extends Controller
                 $leaderUser = DB::table('users')->where('id', $mp->leader_id)->first();
                 $mp->leader_name = $leaderUser ? $leaderUser->name : 'Leader';
                 $mp->leader_email = $leaderUser ? $leaderUser->email : '';
+                
+                // Add display status logic
+                $isAssigned = DB::table('judge_assignments')->where('project_id', $mp->id)->exists();
+                if ($isAssigned && $mp->status === 'Submitted') {
+                    $mp->display_status = 'Assigned';
+                } elseif ($mp->status === 'Evaluated') {
+                    $mp->display_status = 'Evaluated';
+                } else {
+                    $mp->display_status = $mp->status;
+                }
             }
         }
 
@@ -241,19 +283,26 @@ class MakerFestController extends Controller
         // --- DFD Eligibility Check ---
         $activeEvent = DB::table('events')->where('is_active', true)->first();
         if ($activeEvent) {
-            // Check if user already has a project
-            $query = DB::table('projects')
-                ->where('leader_id', $userId)
-                ->whereIn('status', ['Draft', 'Submitted', 'Approved for Evaluation']);
+            $userEmail = DB::table('users')->where('id', $userId)->value('email');
             
-            if ($draftProjectId) {
-                $query->where('id', '!=', $draftProjectId);
-            }
+            $isMember = DB::table('project_members')
+                ->join('projects', 'project_members.project_id', '=', 'projects.id')
+                ->where(function($q) use ($userId, $userEmail) {
+                    $q->where('project_members.user_id', $userId)
+                      ->orWhere('projects.leader_id', $userId);
+                    if ($userEmail) {
+                        $q->orWhere('project_members.email', $userEmail);
+                    }
+                })
+                ->where('projects.event_id', $activeEvent->id)
+                ->whereIn('projects.status', ['Draft', 'Submitted', 'Approved for Evaluation', 'Evaluated'])
+                ->when($draftProjectId, function($q) use ($draftProjectId) {
+                    return $q->where('projects.id', '!=', $draftProjectId);
+                })
+                ->exists();
             
-            $existingProject = $query->first();
-            
-            if ($existingProject) {
-                return redirect()->back()->with('error', 'You already have an active project. You can only submit one project per event.');
+            if ($isMember) {
+                return redirect()->back()->with('error', 'You are already part of an active project (as leader or member). You can only be associated with one project per event.');
             }
 
             // Check deadlines (only if columns exist from migration)
@@ -447,6 +496,18 @@ class MakerFestController extends Controller
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error("Project submission email notification error: " . $e->getMessage());
             }
+        }
+
+        if ($status === 'Submitted') {
+            DB::table('audit_logs')->insert([
+                'user_id' => $userId,
+                'action' => 'project_submission',
+                'entity_type' => 'Project',
+                'entity_id' => $projectId,
+                'details' => 'Project submitted',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
         }
 
         return redirect()->back()->with('success', ($status === 'Submitted') ? 'Project submitted successfully with team details!' : 'Draft saved successfully!');
@@ -692,6 +753,23 @@ class MakerFestController extends Controller
         }
 
         return redirect()->back()->with('error', 'No users found matching the selected filter.');
+    }
+
+    // Extend Deadlines
+    public function extendDeadline(Request $request)
+    {
+        $eventId = $request->input('event_id');
+        
+        DB::table('events')->where('id', $eventId)->update([
+            'registration_start' => $request->input('registration_start'),
+            'submission_deadline' => $request->input('submission_deadline'),
+            'screening_deadline' => $request->input('screening_deadline'),
+            'evaluation_start' => $request->input('evaluation_start'),
+            'evaluation_deadline' => $request->input('evaluation_deadline'),
+            'updated_at' => now(),
+        ]);
+
+        return redirect()->back()->with('success', 'Event deadlines have been successfully extended and updated.');
     }
 
     // Admin Delete / Suspend User

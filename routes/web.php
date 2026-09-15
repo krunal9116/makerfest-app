@@ -58,5 +58,5 @@ Route::post('/admin/judge/assign', [MakerFestController::class, 'assignJudge'])-
 Route::post('/judge/evaluate', [MakerFestController::class, 'submitEvaluation'])->name('judge.evaluate');
 Route::post('/admin/task/assign', [MakerFestController::class, 'assignTask'])->name('admin.assignTask');
 Route::post('/admin/broadcast', [MakerFestController::class, 'broadcastMail'])->name('admin.broadcastMail');
+Route::post('/admin/event/extend-deadline', [MakerFestController::class, 'extendDeadline'])->name('admin.extendDeadline');
 Route::post('/admin/user/{id}/delete', [MakerFestController::class, 'deleteUser'])->name('admin.deleteUser');
-

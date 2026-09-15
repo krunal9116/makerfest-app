@@ -30,6 +30,17 @@ class AuthController extends Controller
             Session::put('user_id', $user->id);
             Session::put('user_role', 'admin');
             Session::put('user_name', $user->name);
+
+            DB::table('audit_logs')->insert([
+                'user_id' => $user->id,
+                'action' => 'login',
+                'entity_type' => 'User',
+                'entity_id' => $user->id,
+                'details' => 'Admin login',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+
             return redirect()->route('admin.dashboard');
         }
 
@@ -57,6 +68,16 @@ class AuthController extends Controller
             Session::put('user_id', $user->id);
             Session::put('user_role', $user->role);
             Session::put('user_name', $user->name);
+
+            DB::table('audit_logs')->insert([
+                'user_id' => $user->id,
+                'action' => 'login',
+                'entity_type' => 'User',
+                'entity_id' => $user->id,
+                'details' => ucfirst($user->role) . ' login',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
 
             if ($user->role === 'maker') {
                 return redirect()->route('maker.dashboard');
@@ -294,6 +315,19 @@ class AuthController extends Controller
             'updated_at' => now(),
         ]);
 
+        $userForLog = DB::table('users')->where('email', $email)->first();
+        if ($userForLog) {
+            DB::table('audit_logs')->insert([
+                'user_id' => $userForLog->id,
+                'action' => 'password_reset',
+                'entity_type' => 'User',
+                'entity_id' => $userForLog->id,
+                'details' => 'Password reset via OTP',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+        }
+
         try {
             $userRecord = DB::table('users')->where('email', $email)->first();
             $emailHtml = "
@@ -443,11 +477,33 @@ class AuthController extends Controller
             'updated_at' => now(),
         ]);
 
+        DB::table('audit_logs')->insert([
+            'user_id' => $userId,
+            'action' => 'password_change',
+            'entity_type' => 'User',
+            'entity_id' => $userId,
+            'details' => 'Password changed from profile settings',
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+
         return redirect()->back()->with('success', 'Password updated successfully!');
     }
 
     public function logout()
     {
+        $userId = Session::get('user_id');
+        if ($userId) {
+            DB::table('audit_logs')->insert([
+                'user_id' => $userId,
+                'action' => 'logout',
+                'entity_type' => 'User',
+                'entity_id' => $userId,
+                'details' => 'User logged out',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+        }
         Session::flush();
         return redirect()->route('login');
     }
